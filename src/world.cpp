@@ -296,8 +296,8 @@ float World::updateStateByDeltaT( float deltaT )
 
       vec3 sphereCentre = (r.OCS_to_WCS().inverse() * vec4( s.state.x, 1.0 )).toVec3(); // now in coordinate system of rectangle
 
-      if (fabs(sphereCentre.x) > r.xDim/2.0+RECTANGLE_EDGE_BUFFER ||
-	  fabs(sphereCentre.y) > r.yDim/2.0+RECTANGLE_EDGE_BUFFER) {
+      if (fabs(sphereCentre.x) > r.yDim/2.0+RECTANGLE_EDGE_BUFFER ||
+	  fabs(sphereCentre.y) > r.xDim/2.0+RECTANGLE_EDGE_BUFFER) {
 
 	spheres[i].constraintRectangles.remove(j);
 #if 0
@@ -523,9 +523,11 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
 
     float m1 = sphere->mass();  // sphere 1 mass
     float m2 = sphere2->mass();;  // sphere 2 mass
+
+    float p = (COEFF_OF_RESTITUTION-1)*(v1b-v2b)*m1*m2/(m2-m1);
   
-    float v1a = COEFF_OF_RESTITUTION*v1b; // sphere 1 velocity AFTER in normal direction
-    float v2a = COEFF_OF_RESTITUTION*v2b; // sphere 2 velocity AFTER in normal direction
+    float v1a = p/m1+v1b; // sphere 1 velocity AFTER in normal direction
+    float v2a = p/m2+v2b; // sphere 2 velocity AFTER in normal direction
 
     // Update sphere velocities in their respective 'state.v'
   
@@ -549,20 +551,24 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     // of the rectangle.
 
     vec3 n = (sphere->contactPoint-sphere->state.x).normalize();
+    //cout<<"n:"<<n.x<<","<<n.y<<","<<n.z<<endl;
     
     // Find the velocity in the normal direction after the collisions
 
     float v1b = sphere->state.v*n; // sphere 1 velocity before in normal direction
     float v2b = rectangle->state.v*n; // rectangle velocity before in normal direction
 
+    
+
     float m1 = sphere->mass();  // sphere 1 mass
 
     float m2 = rectangle->mass();  // rectangle mass.  NOTE THAT THIS MASS IS VERY
 		      // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
 		      // A MOVING OBJECT.  DO THIS!  See rectangle.h
+    float p = (COEFF_OF_RESTITUTION-1)*(v1b-v2b)*m1*m2/(m2-m1);
   
-    float v1a = COEFF_OF_RESTITUTION*v1b; // sphere velocity AFTER in normal direction
-
+    float v1a = v1a=p/m1+v1b; // sphere velocity AFTER in normal direction
+    
     //mat3 I = mat3();
     //I.rows[0]=vec3(0.4*m1*sphere->radius*sphere->radius,0,0);
     //I.rows[1]=vec3(0,0.4*m1*sphere->radius*sphere->radius,0);
@@ -572,6 +578,7 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     //sphere->state.w = sphere->state.w +dw;
 
     // Update state of sphere velocity only.  Do not change velocity of rectangle.
+    //cout<<"v1a: "<<v1a<<endl;
   
     sphere->state.v  = sphere->state.v-v1b*n+v1a*n;  // sphere velocity AFTER
 
@@ -587,6 +594,7 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     float distToPlane = (sphere->state.x - rectangle->centre) * rectangle->normal - sphere->radius;
 
     if (fabs(distToPlane) < MIN_NORMAL_DISTANCE && fabs(v1a) < MIN_NORMAL_SPEED) {
+      //cout<<"stop"<<endl; 
       sphere->constraintRectangles.add( rectangle );
 #if 0
       cout << "Added   s" << W2(sphere - &spheres[0]) << "-r" << W2(rectangle - &rectangles[0]) << " constraint" << endl;
@@ -639,4 +647,3 @@ void World::draw( mat4 WCS_to_VCS, mat4 VCS_to_CCS, vec3 &lightDir )
     delete [] segments;
   }
 }
-
