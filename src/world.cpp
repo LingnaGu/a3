@@ -470,11 +470,11 @@ bool World::findCollisions( Sphere **collisionSphere, Object **collisionObject )
       if (! spheres[i].constraintRectangles.exists( &rectangles[j] )) { // skip constraining rectangles
 
 	vec3 contactPoint;
-	float dist = spheres[i].distToRectangle( rectangles[j], &contactPoint );
+	float dist = spheres[i].distToRectangle( rectangles[j], &contactPoint ) - spheres[i].radius;
 
 	float relativeVelocitySign = (((spheres[i].state.x - rectangles[j].centre) * rectangles[j].normal) * rectangles[j].normal) * spheres[i].state.v;
 
-	if (relativeVelocitySign <= 0) { // < 0 if coming together, > 0 is moving apart
+	if (relativeVelocitySign < 0) { // < 0 if coming together, > 0 is moving apart
 
 	  if (dist < minDist) {
 	    minDist = dist;
@@ -524,8 +524,8 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     float m1 = sphere->mass();  // sphere 1 mass
     float m2 = sphere2->mass();;  // sphere 2 mass
   
-    float v1a = -v1b; // sphere 1 velocity AFTER in normal direction
-    float v2a = -v2b; // sphere 2 velocity AFTER in normal direction
+    float v1a = COEFF_OF_RESTITUTION*v1b; // sphere 1 velocity AFTER in normal direction
+    float v2a = COEFF_OF_RESTITUTION*v2b; // sphere 2 velocity AFTER in normal direction
 
     // Update sphere velocities in their respective 'state.v'
   
@@ -548,24 +548,32 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     // of the rectangle, as the plane in these cases is NOT the plane
     // of the rectangle.
 
-    vec3 n = vec3(9999,9999,9999);
+    vec3 n = (sphere->contactPoint-sphere->state.x).normalize();
     
     // Find the velocity in the normal direction after the collisions
 
-    float v1b = 9999; // sphere velocity before in normal direction
-    float v2b = 9999; // rectangle velocity before in normal direction
+    float v1b = sphere->state.v*n; // sphere 1 velocity before in normal direction
+    float v2b = rectangle->state.v*n; // rectangle velocity before in normal direction
 
-    float m1 = 9999;  // sphere mass
+    float m1 = sphere->mass();  // sphere 1 mass
 
-    float m2 = 9999;  // rectangle mass.  NOTE THAT THIS MASS IS VERY
+    float m2 = rectangle->mass();  // rectangle mass.  NOTE THAT THIS MASS IS VERY
 		      // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
 		      // A MOVING OBJECT.  DO THIS!  See rectangle.h
   
-    float v1a = 9999; // sphere velocity AFTER in normal direction
+    float v1a = COEFF_OF_RESTITUTION*v1b; // sphere velocity AFTER in normal direction
+
+    //mat3 I = mat3();
+    //I.rows[0]=vec3(0.4*m1*sphere->radius*sphere->radius,0,0);
+    //I.rows[1]=vec3(0,0.4*m1*sphere->radius*sphere->radius,0);
+    //I.rows[2]=vec3(0,0,0.4*m1*sphere->radius*sphere->radius);
+
+    //vec3 dw = I.inverse()*(sphere->contactPoint^((COEFF_OF_RESTITUTION-1)*m1*v1b*n));
+    //sphere->state.w = sphere->state.w +dw;
 
     // Update state of sphere velocity only.  Do not change velocity of rectangle.
   
-    sphere->state.v  = vec3(9999,9999,9999);  // sphere velocity AFTER
+    sphere->state.v  = sphere->state.v-v1b*n+v1a*n;  // sphere velocity AFTER
 
     // [END OF YOUR CODE ABOVE]
 

@@ -117,7 +117,6 @@ float Sphere::distToRectangle( Rectangle &rectangle, vec3 *closestPoint )
 }
 
 
-
 // icosahedron vertices (taken from Jon Leech http://www.cs.unc.edu/~jon)
 
 vec3 Sphere::icosahedronVerts[NUM_VERTS] = {

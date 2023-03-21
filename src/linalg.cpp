@@ -878,8 +878,8 @@ float pointToEdgeDistance( vec3 point, vec3 edgeTail, vec3 edgeHead, vec3 *close
     *closestPoint = edgeHead;
     return t_p.length();
   }
-  float distance = point.distanceToLine(edgeHead,edgeHead-edgeTail);
-  float projlen = p_h*h_t*(-1)/h_t.length();
+  float distance = point.distanceToLine(edgeHead,h_t);
+  float projlen = (0-p_h*h_t)/h_t.length();
   *closestPoint = projlen/h_t.length()*h_t+edgeHead;
   return distance;
   //*closestPoint = vec3(0,0,0);
