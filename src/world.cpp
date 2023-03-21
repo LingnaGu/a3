@@ -514,23 +514,23 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     
     // Find a normal to the tangent plane between the spheres
 
-    vec3 n = vec3(9999,9999,9999);
+    vec3 n = (sphere->state.x-sphere2->state.x).normalize();
 
     // Find the velocity in the normal direction after the collisions
 
-    float v1b = 9999; // sphere 1 velocity before in normal direction
-    float v2b = 9999; // sphere 2 velocity before in normal direction
+    float v1b = sphere->state.v*n; // sphere 1 velocity before in normal direction
+    float v2b = sphere2->state.v*n; // sphere 2 velocity before in normal direction
 
-    float m1 = 9999;  // sphere 1 mass
-    float m2 = 9999;  // sphere 2 mass
+    float m1 = sphere->mass();  // sphere 1 mass
+    float m2 = sphere2->mass();;  // sphere 2 mass
   
-    float v1a = 9999; // sphere 1 velocity AFTER in normal direction
-    float v2a = 9999; // sphere 2 velocity AFTER in normal direction
+    float v1a = -v1b; // sphere 1 velocity AFTER in normal direction
+    float v2a = -v2b; // sphere 2 velocity AFTER in normal direction
 
     // Update sphere velocities in their respective 'state.v'
   
-    sphere->state.v  = vec3(9999,9999,9999);  // sphere 1 velocity AFTER
-    sphere2->state.v = vec3(9999,9999,9999);  // sphere 2 velocity AFTER
+    sphere->state.v  = sphere->state.v-v1b*n+v1a*n;  // sphere 1 velocity AFTER
+    sphere2->state.v = sphere2->state.v-v2b*n+v2a*n;  // sphere 2 velocity AFTER
 
     // [END OF YOUR CODE ABOVE]
 
