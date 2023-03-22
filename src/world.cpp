@@ -188,16 +188,20 @@ void World::integrate( State *yStart, State *yEnd, float deltaT, bool &collision
   State *y      = new State[ nSpheres ];
   State *yDeriv = new State[ nSpheres ];
 
-
-
-
-
-
   // For each state in 'yStart', copy it to 'y' and set 'yDeriv'
   // appropriately.  Use GRAVITY_ACCEL as the velocity derivative.
   // Set the angular velocity derivative to zero.
 
   // [YOUR CODE HERE]
+
+  // Integrate: Compute yEnd = yStart + deltaT * yDeriv
+  //
+  // Do this on the individual floats in 'y' and 'yDeriv'.  Do not
+  // refer to the sphere states here.
+
+  // [YOUR CODE HERE]
+
+  // Copy yEnd state into sphere states
   for (int i=0;i<nSpheres;i++){
     y[i]= yStart[i];
     yDeriv[i].x = y[i].v;
@@ -215,10 +219,6 @@ void World::integrate( State *yStart, State *yEnd, float deltaT, bool &collision
     yEnd[i].w=y[i].w+deltaT*yDeriv[i].w;
     yEnd[i].v=y[i].v+deltaT*yDeriv[i].v;
   }
-  // [YOUR CODE HERE]
-
-  // Copy yEnd state into sphere states
-
 
   //copyState( &spheres[0], yEnd );  // [----- DELETE THIS LINE !!!!  DO NOT ADD CODE HERE. -----]
 
@@ -362,17 +362,24 @@ float World::updateStateByDeltaT( float deltaT )
     
     actualDeltaT = 0;
 
+
     // [YOUR CODE HERE]
-    
-    //binary search added
     float tl=deltaT;
+    State* test = yStart;
+    bool testco=true;
+    //cout<<"deltaT:"<<deltaT<<endl;
+
     while(tl>=MIN_DELTA_T_FOR_COLLISIONS){
       tl=tl/2;
-      integrate( yStart, yEnd, tl ,collisionAtEnd, &collisionSphere, &collisionObject );
-      if (!collisionAtEnd){
-        *yStart = *yEnd;
+      integrate( test, yEnd, tl ,testco, &collisionSphere, &collisionObject );
+      if (!testco){
+        //cout<<"in loop"<<endl;
+        *test = *yEnd;
+        actualDeltaT+=tl;
       }
     }
+    //cout<<"actualdt: "<<actualDeltaT<<endl;
+
     // Set the sphere states to that at the START of the interval so
     // that collision has not yet occurred.  Since the objects DO NOT
     // MOVE during collision resolution, this ensures that the objects
@@ -475,6 +482,7 @@ bool World::findCollisions( Sphere **collisionSphere, Object **collisionObject )
 	float relativeVelocitySign = (((spheres[i].state.x - rectangles[j].centre) * rectangles[j].normal) * rectangles[j].normal) * spheres[i].state.v;
 
 	if (relativeVelocitySign < 0) { // < 0 if coming together, > 0 is moving apart
+  //cout<<"getting closer"<<endl;
 
 	  if (dist < minDist) {
 	    minDist = dist;
@@ -512,7 +520,7 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
 
     // [YOUR CODE HERE: REPLACE THE CODE BELOW]
     
-    // Find a normal to the tangent plane between the spheres
+     // Find a normal to the tangent plane between the spheres
 
     vec3 n = (sphere->state.x-sphere2->state.x).normalize();
 
@@ -550,15 +558,13 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     // of the rectangle, as the plane in these cases is NOT the plane
     // of the rectangle.
 
-    vec3 n = -1*(sphere->contactPoint-sphere->state.x).normalize();
+    vec3 n = (sphere->state.x-sphere->contactPoint).normalize();
     //cout<<"n:"<<n.x<<","<<n.y<<","<<n.z<<endl;
     
     // Find the velocity in the normal direction after the collisions
 
     float v1b = sphere->state.v*n; // sphere 1 velocity before in normal direction
     float v2b = rectangle->state.v*n; // rectangle velocity before in normal direction
-
-    
 
     float m1 = sphere->mass();  // sphere 1 mass
 
@@ -584,11 +590,12 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     //
     // Note that a sphere could be constrained to multiple planes.
 
-    float distToPlane = (sphere->state.x - rectangle->centre) * rectangle->normal ;
-    distToPlane = distToPlane - sphere->radius;
+    float distToPlane = (sphere->state.x - rectangle->centre) * rectangle->normal - sphere->radius;
+    //cout<<"v1a:"<<v1a<<endl;
+    //cout<<"distance"<<distToPlane<<endl;
 
     if (fabs(distToPlane) < MIN_NORMAL_DISTANCE && fabs(v1a) < MIN_NORMAL_SPEED) {
-      //cout<<"stop"<<endl; 
+    //cout<<"stop"<<endl;
       sphere->constraintRectangles.add( rectangle );
 #if 0
       cout << "Added   s" << W2(sphere - &spheres[0]) << "-r" << W2(rectangle - &rectangles[0]) << " constraint" << endl;
@@ -641,3 +648,4 @@ void World::draw( mat4 WCS_to_VCS, mat4 VCS_to_CCS, vec3 &lightDir )
     delete [] segments;
   }
 }
+
