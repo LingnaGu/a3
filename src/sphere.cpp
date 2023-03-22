@@ -1,316 +1,115 @@
-/* sphere.C
+/* sphere.h
  */
 
 
-#include "sphere.h"
+#ifndef SPHERE_H
+#define SPHERE_H
 
 
-// Return the distance between 'this' sphere and 'otherSphere'.
-
-float Sphere::distToSphere( Sphere &otherSphere )
-
-{
-  return (otherSphere.state.x - this->state.x).length() - this->radius - otherSphere.radius;
-}
-
-
-
-// Return the distance between 'this' sphere and 'rectangle'.  Also
-// set 'closestPoint' to the point on the rectangle that is closest to
-// the sphere.
-
-float Sphere::distToRectangle( Rectangle &rectangle, vec3 *closestPoint )
-
-{
-  // Find transform that moves rectangle back to [-xDim/2,+xDim/2] x [-yDim/2,+yDim/2] x [0] centred at origin with normal = z
-
-  mat4 Minv = rectangle.OCS_to_WCS().inverse();
-
-  // Apply same to sphere centre.  Now the sphere centre is in the
-  // coordinate system of the rectangle, which has the dimensions
-  // rectangle.xDim x rectangle.yDim, centre at (0,0,0), and normal
-  // (0,0,1).
-
-  vec3 sphereCentre = (Minv * vec4( this->state.x, 1.0 )).toVec3();
-
-  // If the z projection of the sphere is inside the xy rectangle,
-  // find the closestPoint and the distance.
-
-  // [YOUR CODE HERE: REPLACE THE CODE BELOW]
-
-  bool yinside = (sphereCentre.y>= -rectangle.yDim/2) && (sphereCentre.y<= rectangle.yDim/2);
-  bool xinside = (sphereCentre.x>= -rectangle.xDim/2) && (sphereCentre.x<= rectangle.xDim/2);
-
-  //if ( xinside&&yinside ) { 
-    //*closestPoint = vec3(0,0,0);  
-    //return 9999;
-  //}
-
-  if ( xinside&&yinside ) {
-    //cout<<"rec"<<rectangle.xDim<<","<<rectangle.yDim<<endl;
-    //cout<<"sph"<<sphereCentre.x<<","<<sphereCentre.y<<endl;
-    //cout<<"sphere inside"<<endl;
-    vec4 a = rectangle.OCS_to_WCS()*vec4(sphereCentre.x,sphereCentre.y,0,1.0);
-    *closestPoint=a.toVec3();
-    return sphereCentre.z-radius;
-
-    //return 9999;
-  }
-  // [END OF YOUR CODE ABOVE]
-
-  // Determine the distance to each edge, named Xplus, Xminus, Yplus, Yminus below.
-  //
-  // Xplus has y = xDim/2, Xminus has y = -xDim/2, Yplus has x = yDim/2, Yminus has x = -yDim/2.
-  //
-  // For example, the Xplus edge goes from (xDim/2, -yDim/2, 0) to (xDim/2, yDim/2, 0).
-  //
-  // Call pointToEdgeDistance(...) in linalg.cpp to compute the
-  // distances to each edge, and the closest point on each edge.
-
-  vec3 pointXplus, pointYplus, pointXminus, pointYminus; // closest points
-
-  float distXplus, distYplus, distXminus, distYminus; // closest distances
-
-  // [YOUR CODE HERE]
-  vec3 p1 =vec3(rectangle.xDim/2,rectangle.yDim/2,0);
-  vec3 p2 =vec3(-rectangle.xDim/2,rectangle.yDim/2,0);
-  vec3 p3 =vec3(-rectangle.xDim/2,-rectangle.yDim/2,0);
-  vec3 p4 =vec3(rectangle.xDim/2,-rectangle.yDim/2,0);
-  distXplus = pointToEdgeDistance(sphereCentre,p1,p2, &pointXplus);
-  distXminus = pointToEdgeDistance(sphereCentre,p3,p4, &pointXminus);
-  distYplus = pointToEdgeDistance(sphereCentre,p1,p4, &pointYplus);
-  distYminus = pointToEdgeDistance(sphereCentre,p2,p3, &pointYminus);
-  //cout<<pointXminus.x<<","<<pointXminus.y<<","<<pointXminus.z<<endl;
-  //cout<<distXminus<<endl;
-  // Pick the minimum of the edge distances
-  
-  float min = distXplus;
-  vec3  pt  = pointXplus;
-  
-  if (distYplus < min) {
-    min = distYplus;
-    pt = pointYplus;
-  }
-
-  if (distXminus < min) {
-    min = distXminus;
-    pt = pointXminus;
-  }
-
-  if (distYminus < min) {
-    min = distYminus;
-    pt = pointYminus;
-  }
-
-  // Move 'pt', which is in the rectangle's coordinate system, back to
-  // the WCS and store it as 'closestPoint'.  Return the distance from
-  // the edge to the sphere surface.
-  
- // [YOUR CODE HERE: REPLACE THE CODE BELOW]
- vec4 a = rectangle.OCS_to_WCS()*vec4(pt,1.0);
-  *closestPoint = vec3(a.x,a.y,a.z); 
-  
-  return min-radius;
-}
+#include "linalg.h"
+#include "seq.h"
+#include "object.h"
+#include "rectangle.h"
+#include "gpuProgram.h"
 
 
 // icosahedron vertices (taken from Jon Leech http://www.cs.unc.edu/~jon)
 
-vec3 Sphere::icosahedronVerts[NUM_VERTS] = {
-  vec3(  tau,  one,    0 ),
-  vec3( -tau,  one,    0 ),
-  vec3( -tau, -one,    0 ),
-  vec3(  tau, -one,    0 ),
-  vec3(  one,   0 ,  tau ),
-  vec3(  one,   0 , -tau ),
-  vec3( -one,   0 , -tau ),
-  vec3( -one,   0 ,  tau ),
-  vec3(   0 ,  tau,  one ),
-  vec3(   0 , -tau,  one ),
-  vec3(   0 , -tau, -one ),
-  vec3(   0 ,  tau, -one )
+#define tau 0.8506508084      /* t=(1+sqrt(5))/2, tau=t/sqrt(1+t^2)  */
+#define one 0.5257311121      /* one=1/sqrt(1+t^2) , unit sphere     */
+
+#define NUM_VERTS 12
+#define NUM_FACES 20
+
+#define SPHERE_DENSITY 1  // 1 kg/m^3
+
+
+class SphereFace {
+ public:
+  unsigned int v[3];
+  SphereFace() {}
+  SphereFace( int v0, int v1, int v2 ) {
+    v[0] = v0; v[1] = v1; v[2] = v2;
+  }
 };
 
 
-// icosahedron faces (taken from Jon Leech http://www.cs.unc.edu/~jon)
 
-int Sphere::icosahedronFaces[NUM_FACES][3] = {
-  { 4, 8, 7 },
-  { 4, 7, 9 },
-  { 5, 6, 11 },
-  { 5, 10, 6 },
-  { 0, 4, 3 },
-  { 0, 3, 5 },
-  { 2, 7, 1 },
-  { 2, 1, 6 },
-  { 8, 0, 11 },
-  { 8, 11, 1 },
-  { 9, 10, 3 },
-  { 9, 2, 10 },
-  { 8, 4, 0 },
-  { 11, 0, 5 },
-  { 4, 9, 3 },
-  { 5, 3, 10 },
-  { 7, 8, 1 },
-  { 6, 1, 11 },
-  { 7, 2, 9 },
-  { 6, 10, 2 },
-};
+typedef struct {
+  float radius;
+  vec3 centre;
+} SphereDef;
 
 
-// Add a level to the sphere
+class Sphere : public Object {
 
-void Sphere::refine()
+ public:
 
-{
-  int n = faces.size();
+  float radius;
 
-  for (int i=0; i<n; i++) {
-
-    SphereFace f = faces[i];
-
-    verts.add( (verts[ f.v[0] ] + verts[ f.v[1] ]).normalize() );
-    verts.add( (verts[ f.v[1] ] + verts[ f.v[2] ]).normalize() );
-    verts.add( (verts[ f.v[2] ] + verts[ f.v[0] ]).normalize() );
-
-    int v01 = verts.size() - 3;
-    int v12 = verts.size() - 2;
-    int v20 = verts.size() - 1;
-
-    faces.add( SphereFace( f.v[0], v01, v20 ) );
-    faces.add( SphereFace( f.v[1], v12, v01 ) );
-    faces.add( SphereFace( f.v[2], v20, v12 ) );
-
-    faces[i].v[0] = v01;
-    faces[i].v[1] = v12;
-    faces[i].v[2] = v20;
-  }
-}
-
-
-void Sphere::setupVAO()
-
-{
-  // Create a VAO
-
-  glGenVertexArrays( 1, &VAO );
-  glBindVertexArray( VAO );
-
-  // store vertices (i.e. one triple of floats per vertex)
-
-  GLuint vertexBufferID;
-  glGenBuffers( 1, &vertexBufferID );
-  glBindBuffer( GL_ARRAY_BUFFER, vertexBufferID );
-
-  glBufferData( GL_ARRAY_BUFFER, verts.size() * sizeof(vec3), (void*) &verts[0], GL_STATIC_DRAW );
-
-  glEnableVertexAttribArray( 0 );
-  glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 0, 0 );
-
-  // Set up face indices.  These are collected from the sphere's
-  // 'seq<vec3> verts' and 'seq<SphereFace> faces' structures.
-
-  GLuint *indexBuffer = new GLuint[ faces.size() * 3 ];
-
-  for (int i=0; i<faces.size(); i++) {
-
-    // Determine whether vertices are CW or CCW
-
-    vec3 normal = 1/3.0 * (verts[faces[i].v[0]] + verts[faces[i].v[1]] + verts[faces[i].v[2]] );
-    vec3 cross = (verts[faces[i].v[1]] - verts[faces[i].v[0]]) ^ (verts[faces[i].v[2]] - verts[faces[i].v[0]]);
-
-    if (normal * cross > 0) // CW
-      for (int j=0; j<3; j++) 
-	indexBuffer[3*i+j] = faces[i].v[j]; 
-    else // CCW
-      for (int j=2; j>=0; j--) 
-	indexBuffer[3*i+j] = faces[i].v[j]; 
-  }
-
-  // store faces (i.e. one triple of vertex indices per face)
-
-  GLuint indexBufferID;
-  glGenBuffers( 1, &indexBufferID );
-  glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBufferID );
-  glBufferData( GL_ELEMENT_ARRAY_BUFFER, faces.size() * 3 * sizeof(GLuint), indexBuffer, GL_STATIC_DRAW );
-
-  // Clean up
-
-  delete[] indexBuffer;
-
-  glBindBuffer( GL_ARRAY_BUFFER, 0 );
-  glBindVertexArray( 0 );
-}
-
-
-void Sphere::draw( mat4 &WCS_to_VCS, mat4 &VCS_to_CCS, vec3 &lightDir, vec3 &colour )
-
-{
-  mat4 MV  = WCS_to_VCS * OCS_to_WCS() * scale( radius, radius, radius );
-  mat4 MVP = VCS_to_CCS * MV;
-
-  gpu->activate();
-
-  gpu->setMat4( "MV", MV );
-  gpu->setMat4( "MVP", MVP );
-  gpu->setVec3( "colour", colour );
-  gpu->setVec3( "lightDir", lightDir );
+  float minDist;      // min distance to another object
+  vec3  contactPoint; // when a collision occurs: contact point on another object
   
-  // Draw using element array
+  seq<Rectangle*> constraintRectangles;  // rectangles on which the sphere is constrained to remain
+  
+ Sphere( int numLevels, float radius, vec3 position, quaternion orientation, vec3 velocity, vec3 angVelocity )
 
-  glBindVertexArray( VAO );
-  glDrawElements( GL_TRIANGLES, faces.size()*3, GL_UNSIGNED_INT, 0 );
-  glBindVertexArray( 0 );
+    : Object( position, orientation, velocity, angVelocity ) 
 
-  gpu->deactivate();
-}
+    {
+      this->radius = radius;
+      this->minDist = FLT_MAX;
+      
+      for (int i=0; i<NUM_VERTS; i++)
+	verts.add( icosahedronVerts[i] );
 
+      for (int i=0; i<verts.size(); i++)
+	verts[i] = verts[i].normalize();
 
-const char *Sphere::vertShader = R"XX(
+      for (int i=0; i<NUM_FACES; i++)
+	faces.add( SphereFace( icosahedronFaces[i][0],
+			       icosahedronFaces[i][1],
+			       icosahedronFaces[i][2] ) );
 
-  #version 300 es
+      for (int i=0; i<numLevels; i++)
+	refine();
 
-  precision mediump float;
+      gpu = new GPUProgram();
+      gpu->init( vertShader, fragShader, "in sphere.cpp" );
 
-  uniform mat4 MVP;
-  uniform mat4 MV;
+      setupVAO();
+    };
 
-  layout (location = 0) in vec3 vertPosition;
+  Sphere() {}
 
-  smooth out vec3 normal;
+  ~Sphere() {}
 
-  void main() {
+  void draw( mat4 &WCS_to_VCS, mat4 &VCS_to_CCS, vec3 &lightDir, vec3 &colour );
 
-    gl_Position = MVP * vec4( vertPosition, 1.0 );
+  float distToSphere( Sphere &otherSphere );
 
-    normal = vec3( MV * vec4( vertPosition, 0.0 ) );  // positions are on unit sphere, so positions == normals
+  float distToRectangle( Rectangle &rectangle, vec3 *closestPoint );
+
+  float mass() {
+    return SPHERE_DENSITY * (4.0/3.0) * 3.14159 * radius * radius * radius;
   }
-)XX";
 
+ private:
 
-const char *Sphere::fragShader = R"XX(
+  seq<vec3>       verts;
+  seq<SphereFace> faces;
+  GLuint          VAO; 
 
-  #version 300 es
+  GPUProgram      *gpu;
 
-  precision mediump float;
+  static const char *vertShader;
+  static const char *fragShader;
 
-  uniform vec3 colour;
-  uniform vec3 lightDir;
+  void refine();
+  void setupVAO();
 
-  smooth in vec3 normal;
-  out vec4 outputColour;
+  static vec3 icosahedronVerts[NUM_VERTS];
+  static int icosahedronFaces[NUM_FACES][3];
+};
 
-  void main() {
-
-    float NdotL = dot( normalize(normal), lightDir );
-
-    if (NdotL < 0.1)
-      NdotL = 0.1; // some ambient
-
-    outputColour = vec4( NdotL * colour, 1.0 );
-  }
-)XX";
-
-
-
-
+#endif
