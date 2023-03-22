@@ -38,8 +38,8 @@ float Sphere::distToRectangle( Rectangle &rectangle, vec3 *closestPoint )
 
   // [YOUR CODE HERE: REPLACE THE CODE BELOW]
 
-  bool yinside = (sphereCentre.y> -rectangle.xDim/2) && (sphereCentre.y< rectangle.xDim/2);
-  bool xinside = (sphereCentre.x> -rectangle.yDim/2) && (sphereCentre.x< rectangle.yDim/2);
+  bool yinside = (sphereCentre.y>= -rectangle.yDim/2) && (sphereCentre.y<= rectangle.yDim/2);
+  bool xinside = (sphereCentre.x>= -rectangle.xDim/2) && (sphereCentre.x<= rectangle.xDim/2);
 
   //if ( xinside&&yinside ) { 
     //*closestPoint = vec3(0,0,0);  
@@ -50,9 +50,9 @@ float Sphere::distToRectangle( Rectangle &rectangle, vec3 *closestPoint )
     //cout<<"rec"<<rectangle.xDim<<","<<rectangle.yDim<<endl;
     //cout<<"sph"<<sphereCentre.x<<","<<sphereCentre.y<<endl;
     //cout<<"sphere inside"<<endl;
-    vec4 a = rectangle.OCS_to_WCS()*vec4(sphereCentre.x,sphereCentre.y,0,1);
+    vec4 a = rectangle.OCS_to_WCS()*vec4(sphereCentre.x,sphereCentre.y,0,1.0);
     *closestPoint=a.toVec3();
-    return sphereCentre.z;
+    return sphereCentre.z-radius;
 
     //return 9999;
   }
@@ -75,16 +75,13 @@ float Sphere::distToRectangle( Rectangle &rectangle, vec3 *closestPoint )
   vec3 p1 =vec3(rectangle.xDim/2,rectangle.yDim/2,0);
   vec3 p2 =vec3(-rectangle.xDim/2,rectangle.yDim/2,0);
   vec3 p3 =vec3(-rectangle.xDim/2,-rectangle.yDim/2,0);
-  vec3 p4 =vec3(-rectangle.xDim/2,-rectangle.yDim/2,0);
+  vec3 p4 =vec3(rectangle.xDim/2,-rectangle.yDim/2,0);
   distXplus = pointToEdgeDistance(sphereCentre,p1,p2, &pointXplus);
   distXminus = pointToEdgeDistance(sphereCentre,p3,p4, &pointXminus);
   distYplus = pointToEdgeDistance(sphereCentre,p1,p4, &pointYplus);
   distYminus = pointToEdgeDistance(sphereCentre,p2,p3, &pointYminus);
   //cout<<pointXminus.x<<","<<pointXminus.y<<","<<pointXminus.z<<endl;
   //cout<<distXminus<<endl;
-  
-
-  
   // Pick the minimum of the edge distances
   
   float min = distXplus;
@@ -110,10 +107,10 @@ float Sphere::distToRectangle( Rectangle &rectangle, vec3 *closestPoint )
   // the edge to the sphere surface.
   
  // [YOUR CODE HERE: REPLACE THE CODE BELOW]
- vec4 a = rectangle.OCS_to_WCS()*vec4(pt,1);
+ vec4 a = rectangle.OCS_to_WCS()*vec4(pt,1.0);
   *closestPoint = vec3(a.x,a.y,a.z); 
   
-  return min;
+  return min-radius;
 }
 
 
@@ -313,7 +310,6 @@ const char *Sphere::fragShader = R"XX(
     outputColour = vec4( NdotL * colour, 1.0 );
   }
 )XX";
-
 
 
 

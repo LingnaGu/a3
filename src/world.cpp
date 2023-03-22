@@ -296,8 +296,8 @@ float World::updateStateByDeltaT( float deltaT )
 
       vec3 sphereCentre = (r.OCS_to_WCS().inverse() * vec4( s.state.x, 1.0 )).toVec3(); // now in coordinate system of rectangle
 
-      if (fabs(sphereCentre.x) > r.yDim/2.0+RECTANGLE_EDGE_BUFFER ||
-	  fabs(sphereCentre.y) > r.xDim/2.0+RECTANGLE_EDGE_BUFFER) {
+      if (fabs(sphereCentre.x) > r.xDim/2.0+RECTANGLE_EDGE_BUFFER ||
+	  fabs(sphereCentre.y) > r.yDim/2.0+RECTANGLE_EDGE_BUFFER) {
 
 	spheres[i].constraintRectangles.remove(j);
 #if 0
@@ -470,7 +470,7 @@ bool World::findCollisions( Sphere **collisionSphere, Object **collisionObject )
       if (! spheres[i].constraintRectangles.exists( &rectangles[j] )) { // skip constraining rectangles
 
 	vec3 contactPoint;
-	float dist = spheres[i].distToRectangle( rectangles[j], &contactPoint ) - spheres[i].radius;
+	float dist = spheres[i].distToRectangle( rectangles[j], &contactPoint );
 
 	float relativeVelocitySign = (((spheres[i].state.x - rectangles[j].centre) * rectangles[j].normal) * rectangles[j].normal) * spheres[i].state.v;
 
@@ -524,10 +524,10 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     float m1 = sphere->mass();  // sphere 1 mass
     float m2 = sphere2->mass();;  // sphere 2 mass
 
-    float p = (COEFF_OF_RESTITUTION-1)*(v1b-v2b)*m1*m2/(m2-m1);
+    float p = (COEFF_OF_RESTITUTION-1)*(v1b-v2b)*m1*m2/(m2+m1);
   
     float v1a = p/m1+v1b; // sphere 1 velocity AFTER in normal direction
-    float v2a = p/m2+v2b; // sphere 2 velocity AFTER in normal direction
+    float v2a = -1*p/m2+v2b; // sphere 2 velocity AFTER in normal direction
 
     // Update sphere velocities in their respective 'state.v'
   
@@ -550,7 +550,7 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     // of the rectangle, as the plane in these cases is NOT the plane
     // of the rectangle.
 
-    vec3 n = (sphere->contactPoint-sphere->state.x).normalize();
+    vec3 n = -1*(sphere->contactPoint-sphere->state.x).normalize();
     //cout<<"n:"<<n.x<<","<<n.y<<","<<n.z<<endl;
     
     // Find the velocity in the normal direction after the collisions
@@ -565,17 +565,10 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     float m2 = rectangle->mass();  // rectangle mass.  NOTE THAT THIS MASS IS VERY
 		      // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
 		      // A MOVING OBJECT.  DO THIS!  See rectangle.h
-    float p = (COEFF_OF_RESTITUTION-1)*(v1b-v2b)*m1*m2/(m2-m1);
+    float p = (COEFF_OF_RESTITUTION-1)*(v1b-v2b)*m1*m2/(m2+m1);
   
-    float v1a = v1a=p/m1+v1b; // sphere velocity AFTER in normal direction
+    float v1a = p/m1+v1b; // sphere velocity AFTER in normal direction
     
-    //mat3 I = mat3();
-    //I.rows[0]=vec3(0.4*m1*sphere->radius*sphere->radius,0,0);
-    //I.rows[1]=vec3(0,0.4*m1*sphere->radius*sphere->radius,0);
-    //I.rows[2]=vec3(0,0,0.4*m1*sphere->radius*sphere->radius);
-
-    //vec3 dw = I.inverse()*(sphere->contactPoint^((COEFF_OF_RESTITUTION-1)*m1*v1b*n));
-    //sphere->state.w = sphere->state.w +dw;
 
     // Update state of sphere velocity only.  Do not change velocity of rectangle.
     //cout<<"v1a: "<<v1a<<endl;
@@ -591,7 +584,8 @@ void World::resolveCollision( Sphere *sphere, Object *otherObject )
     //
     // Note that a sphere could be constrained to multiple planes.
 
-    float distToPlane = (sphere->state.x - rectangle->centre) * rectangle->normal - sphere->radius;
+    float distToPlane = (sphere->state.x - rectangle->centre) * rectangle->normal ;
+    distToPlane = distToPlane - sphere->radius;
 
     if (fabs(distToPlane) < MIN_NORMAL_DISTANCE && fabs(v1a) < MIN_NORMAL_SPEED) {
       //cout<<"stop"<<endl; 
